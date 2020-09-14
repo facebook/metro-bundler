@@ -18,7 +18,7 @@ const inlineRequiresPlugin = require('babel-preset-fbjs/plugins/inline-requires'
 const makeHMRConfig = require('metro-react-native-babel-preset/src/configs/hmr');
 const path = require('path');
 
-const {parseSync, transformFromAstSync} = require('@babel/core');
+const {parseAsync, transformFromAstAsync} = require('@babel/core');
 const {generateFunctionMap} = require('metro-source-map');
 
 import type {Plugins, Presets} from '@babel/core';
@@ -69,6 +69,11 @@ const getBabelRC = (function() {
     }
 
     if (projectBabelRCPath) {
+      // babel.config.mjs
+      if (!fs.existsSync(projectBabelRCPath)) {
+        projectBabelRCPath = path.resolve(projectRoot, 'babel.config.mjs');
+      }
+      
       // .babelrc.js
       if (!fs.existsSync(projectBabelRCPath)) {
         projectBabelRCPath = path.resolve(projectRoot, '.babelrc.js');
@@ -158,7 +163,7 @@ function buildBabelConfig(filename, options, plugins?: Plugins = []) {
   return Object.assign({}, babelRC, config);
 }
 
-function transform({filename, options, src, plugins}: BabelTransformerArgs) {
+async function transform({filename, options, src, plugins}: BabelTransformerArgs) {
   const OLD_BABEL_ENV = process.env.BABEL_ENV;
   process.env.BABEL_ENV = options.dev
     ? 'development'
@@ -172,11 +177,11 @@ function transform({filename, options, src, plugins}: BabelTransformerArgs) {
       caller: {name: 'metro', bundler: 'metro', platform: options.platform},
       ast: true,
     };
-    const sourceAst = parseSync(src, babelConfig);
+    const sourceAst = await parseAsync(src, babelConfig);
     /* $FlowFixMe(>=0.111.0 site=react_native_fb) This comment suppresses an
      * error found when Flow v0.111 was deployed. To see the error, delete this
      * comment and run Flow. */
-    const result = transformFromAstSync(sourceAst, src, babelConfig);
+    const result = await transformFromAstAsync(sourceAst, src, babelConfig);
     const functionMap = generateFunctionMap(sourceAst, {filename});
 
     // The result from `transformFromAstSync` can be null (if the file is ignored)
